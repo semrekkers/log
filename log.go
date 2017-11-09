@@ -1,3 +1,5 @@
+// Package log implements a simple logger. It is fully compatible with the standard log package
+// and, it provides extra functionality like labels, log levels and colored output.
 package log
 
 import (
@@ -31,17 +33,20 @@ const (
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
 
+// Log levels.
 const (
-	LevelFatal = iota
-	LevelPanic
-	LevelError
-	LevelWarn
-	LevelInfo
-	LevelDebug
-	LevelDefault = LevelError
+	LevelFatal   = iota       // Fatal log level
+	LevelPanic                // Panic log level
+	LevelError                // Error log level
+	LevelWarn                 // Warning log level
+	LevelInfo                 // Information log level
+	LevelDebug                // Debug log level
+	LevelDefault = LevelError // Default log level (LevelError)
 )
 
+// For colored output.
 const (
+	// ANSI colors
 	colorNone   = 0
 	colorRed    = 31
 	colorGreen  = 32
@@ -49,10 +54,12 @@ const (
 	colorBlue   = 36
 	colorWhite  = 37
 
+	// ANSI escape sequence format
 	escSeq = "\033[%dm"
 )
 
 var (
+	// labelMap contains labels mapped to log levels.
 	labelMap = []string{
 		"FATAL",
 		"PANIC",
@@ -62,6 +69,7 @@ var (
 		"DEBUG",
 	}
 
+	// colorMap contains ANSI colors mapped to log levels.
 	colorMap = []int{
 		colorRed,
 		colorRed,
@@ -72,6 +80,10 @@ var (
 	}
 )
 
+// A Logger represents an active logging object that generates lines of
+// output to an io.Writer. Each logging operation makes a single call to
+// the Writer's Write method. A Logger can be used simultaneously from
+// multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
 	l     *golog.Logger
 	mu    sync.Mutex
@@ -79,6 +91,7 @@ type Logger struct {
 	level int
 }
 
+// New returns a new Logger.
 func New(out io.Writer, prefix string, flag int) *Logger {
 	return &Logger{
 		l:     golog.New(out, prefix, flag),
@@ -324,4 +337,216 @@ func (l *Logger) Prefix() string {
 
 func (l *Logger) SetPrefix(prefix string) {
 	l.l.SetPrefix(prefix)
+}
+
+// Standard logger
+var std = New(os.Stderr, "", LstdFlags)
+
+func StdLogger() *Logger {
+	return std
+}
+
+func Output(calldepth int, s string) error {
+	return std.l.Output(calldepth+1, s)
+}
+
+func Print(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelInfo {
+		std.format(LevelInfo, fmt.Sprint(v...))
+	}
+}
+
+func Println(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelInfo {
+		std.format(LevelInfo, fmt.Sprintln(v...))
+	}
+}
+
+func Printf(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelInfo {
+		std.format(LevelInfo, fmt.Sprintf(format, v...))
+	}
+}
+
+func Fatal(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelFatal {
+		std.format(LevelFatal, fmt.Sprint(v...))
+	}
+	os.Exit(1)
+}
+
+func Fatalln(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelFatal {
+		std.format(LevelFatal, fmt.Sprintln(v...))
+	}
+	os.Exit(1)
+}
+
+func Fatalf(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelFatal {
+		std.format(LevelFatal, fmt.Sprintf(format, v...))
+	}
+	os.Exit(1)
+}
+
+func Panic(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	s := fmt.Sprint(v...)
+	if std.level >= LevelPanic {
+		std.format(LevelPanic, s)
+	}
+	panic(s)
+}
+
+func Panicln(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	s := fmt.Sprintln(v...)
+	if std.level >= LevelPanic {
+		std.format(LevelPanic, s)
+	}
+	panic(s)
+}
+
+func Panicf(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	s := fmt.Sprintf(format, v...)
+	if std.level >= LevelPanic {
+		std.format(LevelPanic, s)
+	}
+	panic(s)
+}
+
+func Error(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelError {
+		std.format(LevelError, fmt.Sprint(v...))
+	}
+}
+
+func Errorln(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelError {
+		std.format(LevelError, fmt.Sprintln(v...))
+	}
+}
+
+func Errorf(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelError {
+		std.format(LevelError, fmt.Sprintf(format, v...))
+	}
+}
+
+func Warn(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelWarn {
+		std.format(LevelWarn, fmt.Sprint(v...))
+	}
+}
+
+func Warnln(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelWarn {
+		std.format(LevelWarn, fmt.Sprintln(v...))
+	}
+}
+
+func Warnf(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelWarn {
+		std.format(LevelWarn, fmt.Sprintf(format, v...))
+	}
+}
+
+func Info(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelInfo {
+		std.format(LevelInfo, fmt.Sprint(v...))
+	}
+}
+
+func Infoln(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelInfo {
+		std.format(LevelInfo, fmt.Sprintln(v...))
+	}
+}
+
+func Infof(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelInfo {
+		std.format(LevelInfo, fmt.Sprintf(format, v...))
+	}
+}
+
+func Debug(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelDebug {
+		std.format(LevelDebug, fmt.Sprint(v...))
+	}
+}
+
+func Debugln(v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelDebug {
+		std.format(LevelDebug, fmt.Sprintln(v...))
+	}
+}
+
+func Debugf(format string, v ...interface{}) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	if std.level >= LevelDebug {
+		std.format(LevelDebug, fmt.Sprintf(format, v...))
+	}
+}
+
+func Flags() int {
+	return std.Flags()
+}
+
+func SetFlags(flag int) {
+	std.SetFlags(flag)
+}
+
+func Level() int {
+	return std.Level()
+}
+
+func SetLevel(level int) {
+	std.SetLevel(level)
+}
+
+func Prefix() string {
+	return std.Prefix()
+}
+
+func SetPrefix(prefix string) {
+	std.SetPrefix(prefix)
 }
