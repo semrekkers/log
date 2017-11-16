@@ -346,6 +346,10 @@ func StdLogger() *Logger {
 	return std
 }
 
+func SetOutput(w io.Writer) {
+	std.SetOutput(w)
+}
+
 func Output(calldepth int, s string) error {
 	return std.l.Output(calldepth+1, s)
 }
